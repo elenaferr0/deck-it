@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/deck.dart';
 import '../models/sync_models.dart';
+import 'id_generator.dart';
 
 class AnkiSyncService {
   static Map<String, dynamic> toAnkiInterchangePayload(List<Deck> decks) {
@@ -67,7 +68,7 @@ class AnkiSyncService {
           : <FlashCard>[];
 
       return Deck(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        id: IdGenerator.next(),
         name: name.isEmpty ? 'Imported' : name,
         cards: cards,
       );
@@ -168,7 +169,7 @@ class AnkiSyncService {
       var target = lookup[key];
       if (target == null) {
         target = Deck(
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          id: IdGenerator.next(),
           name: remote.name,
           cards: [],
         );
@@ -178,15 +179,15 @@ class AnkiSyncService {
       }
 
       final knownCards = target.cards
-          .map((c) => '${c.question.trim()}\u0000${c.answer.trim()}')
+          .map((c) => _cardSignature(c.question, c.answer))
           .toSet();
       for (final remoteCard in remote.cards) {
         final signature =
-            '${remoteCard.question.trim()}\u0000${remoteCard.answer.trim()}';
+            _cardSignature(remoteCard.question, remoteCard.answer);
         if (knownCards.contains(signature)) continue;
         target.cards.add(
           FlashCard(
-            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            id: IdGenerator.next(),
             question: remoteCard.question,
             answer: remoteCard.answer,
           ),
@@ -221,5 +222,9 @@ class AnkiSyncService {
       headers['Authorization'] = 'Bearer ${settings.apiToken.trim()}';
     }
     return headers;
+  }
+
+  static String _cardSignature(String question, String answer) {
+    return '${question.trim()}\u0000${answer.trim()}';
   }
 }

@@ -2,6 +2,7 @@ import 'package:csv/csv.dart';
 
 import '../models/deck.dart';
 import '../models/sync_models.dart';
+import 'id_generator.dart';
 
 class CsvImportService {
   static const String _defaultDeckName = 'Imported';
@@ -143,7 +144,7 @@ class CsvImportService {
     if (existing != null) return existing;
 
     final newDeck = Deck(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: IdGenerator.next(),
       name: deckName.trim(),
       cards: [],
     );
@@ -156,7 +157,7 @@ class CsvImportService {
   static void _appendCard(Deck deck, String question, String answer) {
     deck.cards.add(
       FlashCard(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        id: IdGenerator.next(),
         question: question,
         answer: answer,
       ),
