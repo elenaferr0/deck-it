@@ -101,6 +101,13 @@ class _DecksTabState extends State<DecksTab> {
         ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: _loadDecks,
+            tooltip: 'Refresh decks',
+          ),
+        ],
       ),
       body: decks.isEmpty
           ? Center(
