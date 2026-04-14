@@ -111,7 +111,6 @@ class CsvImportService {
   static List<List<dynamic>> _parseRows(String input) {
     final commaRows = const CsvToListConverter(
       shouldParseNumbers: false,
-      eol: '\n',
       fieldDelimiter: ',',
     ).convert(input);
 
@@ -125,7 +124,6 @@ class CsvImportService {
     try {
       return const CsvToListConverter(
         shouldParseNumbers: false,
-        eol: '\n',
         fieldDelimiter: '\t',
       ).convert(input);
     } catch (_) {

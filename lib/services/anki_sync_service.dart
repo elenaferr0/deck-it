@@ -59,8 +59,7 @@ class AnkiSyncService {
                       '')
                   .toString();
               return FlashCard(
-                id: (cardMap['id'] ?? DateTime.now().toIso8601String())
-                    .toString(),
+                id: (cardMap['id'] ?? IdGenerator.next()).toString(),
                 question: front,
                 answer: back,
               );
@@ -225,6 +224,8 @@ class AnkiSyncService {
   }
 
   static String _cardSignature(String question, String answer) {
+    // Null character is used to avoid collisions from common punctuation/spacing
+    // in user text; it is extremely unlikely in normal flashcard content.
     return '${question.trim()}\u0000${answer.trim()}';
   }
 }

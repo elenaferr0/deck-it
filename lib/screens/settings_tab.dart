@@ -70,10 +70,10 @@ class _SettingsTabState extends State<SettingsTab> {
       final file = picked.files.single;
       String content;
       if (file.bytes != null) {
-        content = utf8.decode(file.bytes!, allowMalformed: true);
+        content = utf8.decode(file.bytes!, allowMalformed: false);
       } else if (file.path != null) {
         final bytes = await File(file.path!).readAsBytes();
-        content = utf8.decode(bytes, allowMalformed: true);
+        content = utf8.decode(bytes, allowMalformed: false);
       } else {
         throw Exception('Unable to read selected file.');
       }
@@ -93,6 +93,11 @@ class _SettingsTabState extends State<SettingsTab> {
           ),
           behavior: SnackBarBehavior.floating,
         ),
+      );
+    } on FormatException {
+      if (!mounted) return;
+      _showErrorSnackBar(
+        'CSV import failed: file must be valid UTF-8 text.',
       );
     } catch (e) {
       if (!mounted) return;
