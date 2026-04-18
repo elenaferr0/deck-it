@@ -4,6 +4,7 @@ import '../widgets/edit_deck_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
 import '../models/deck.dart';
 import '../services/storage_service.dart';
+import '../services/csv_service.dart';
 import 'deck_detail_screen.dart';
 
 class DecksTab extends StatefulWidget {
@@ -62,6 +63,39 @@ class _DecksTabState extends State<DecksTab> {
     }
   }
 
+  Future<void> _importDeck() async {
+    final cards = await CsvService.importCards();
+    if (!mounted) return;
+    if (cards == null) return;
+
+    // Prompt for deck name; default to empty so AddDeckDialog can prefill nothing.
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => const AddDeckDialog(),
+    );
+    if (name == null || name.isEmpty) return;
+
+    final newDeck = Deck(
+      id: DateTime.now().toString(),
+      name: name,
+      cards: cards
+          .asMap()
+          .entries
+          .map((e) => FlashCard(
+                id: '${DateTime.now().microsecondsSinceEpoch}_${e.key}',
+                question: e.value['question']!,
+                answer: e.value['answer']!,
+              ))
+          .toList(),
+    );
+    setState(() => decks.add(newDeck));
+    await widget.storage.saveDecks(decks);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Imported ${cards.length} card(s) into "$name".')),
+    );
+  }
+
   Future<void> _deleteDeck(int index) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -101,6 +135,13 @@ class _DecksTabState extends State<DecksTab> {
         ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download_rounded),
+            tooltip: 'Import Deck from CSV',
+            onPressed: _importDeck,
+          ),
+        ],
       ),
       body: decks.isEmpty
           ? Center(

@@ -4,6 +4,7 @@ import '../widgets/add_card_dialog.dart';
 import '../widgets/edit_card_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
 import '../services/storage_service.dart';
+import '../services/csv_service.dart';
 
 class DeckDetailScreen extends StatefulWidget {
   final Deck deck;
@@ -60,6 +61,48 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     }
   }
 
+  Future<void> _exportDeck() async {
+    if (widget.deck.cards.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No cards to export.')),
+      );
+      return;
+    }
+    final path = await CsvService.exportDeck(widget.deck);
+    if (!mounted) return;
+    if (path != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Exported to: $path')),
+      );
+    }
+  }
+
+  Future<void> _importCards() async {
+    final cards = await CsvService.importCards();
+    if (!mounted) return;
+    if (cards == null) return;
+    if (cards.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No valid cards found in file.')),
+      );
+      return;
+    }
+    setState(() {
+      for (final c in cards) {
+        widget.deck.cards.add(FlashCard(
+          id: '${DateTime.now().microsecondsSinceEpoch}_${widget.deck.cards.length}',
+          question: c['question']!,
+          answer: c['answer']!,
+        ));
+      }
+    });
+    await widget.storage.saveDecks(widget.decks);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Imported ${cards.length} card(s).')),
+    );
+  }
+
   Future<void> _deleteCard(int index) async {
     final card = widget.deck.cards[index];
     final confirmed = await showDialog<bool>(
@@ -99,6 +142,36 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
         ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         elevation: 0,
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'export') _exportDeck();
+              if (value == 'import') _importCards();
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'export',
+                child: Row(
+                  children: [
+                    Icon(Icons.upload_file, size: 20),
+                    SizedBox(width: 8),
+                    Text('Export CSV'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'import',
+                child: Row(
+                  children: [
+                    Icon(Icons.download_rounded, size: 20),
+                    SizedBox(width: 8),
+                    Text('Import CSV'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
 
       body: Column(
