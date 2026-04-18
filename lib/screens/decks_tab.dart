@@ -4,7 +4,7 @@ import '../widgets/edit_deck_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
 import '../models/deck.dart';
 import '../services/storage_service.dart';
-import '../screens/deck_detail_screen.dart';
+import 'deck_detail_screen.dart';
 
 class DecksTab extends StatefulWidget {
   final StorageService storage;

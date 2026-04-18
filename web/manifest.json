@@ -1,6 +1,6 @@
 {
-    "name": "DeckIt",
-    "short_name": "DeckIt",
+    "name": "deck_it",
+    "short_name": "deck_it",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

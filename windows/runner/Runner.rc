@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "DeckIt" "\0"
+            VALUE "FileDescription", "deck_it" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "DeckIt" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2024 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "DeckIt.exe" "\0"
-            VALUE "ProductName", "DeckIt" "\0"
+            VALUE "InternalName", "deck_it" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
+            VALUE "OriginalFilename", "deck_it.exe" "\0"
+            VALUE "ProductName", "deck_it" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
