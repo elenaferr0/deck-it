@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/storage_service.dart';
+import 'services/notification_service.dart';
 import 'screens/decks_tab.dart';
 import 'screens/review_tab.dart';
 import 'screens/settings_tab.dart';
@@ -9,11 +10,13 @@ import 'providers/theme_provider.dart';
 class MyApp extends StatelessWidget {
   final StorageService storage;
   final ThemeProvider themeProvider;
-  
+  final GlobalKey<NavigatorState> navigatorKey;
+
   const MyApp({
-    required this.storage, 
-    required this.themeProvider, 
-    super.key
+    required this.storage,
+    required this.themeProvider,
+    required this.navigatorKey,
+    super.key,
   });
 
   @override
@@ -22,18 +25,18 @@ class MyApp extends StatelessWidget {
       animation: themeProvider,
       builder: (context, child) {
         return MaterialApp(
+          navigatorKey: navigatorKey,
           title: 'DeckIt',
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
               seedColor: themeProvider.seedColor,
-              brightness: themeProvider.isDarkMode ? Brightness.dark : Brightness.light,
+              brightness: themeProvider.isDarkMode
+                  ? Brightness.dark
+                  : Brightness.light,
             ),
             useMaterial3: true,
           ),
-          home: MyHomePage(
-            storage: storage,
-            themeProvider: themeProvider,
-          ),
+          home: MyHomePage(storage: storage, themeProvider: themeProvider),
         );
       },
     );
@@ -89,8 +92,9 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        final isFirstRouteInCurrentTab = 
-            !await _navigatorKeys[_currentIndex]!.currentState!.maybePop();
+        final isFirstRouteInCurrentTab = !await _navigatorKeys[_currentIndex]!
+            .currentState!
+            .maybePop();
         if (isFirstRouteInCurrentTab) {
           if (_currentIndex != 0) {
             _onTabTapped(0);
@@ -115,10 +119,7 @@ class _MyHomePageState extends State<MyHomePage> {
               icon: Icon(Icons.library_books),
               label: 'Decks',
             ),
-            NavigationDestination(
-              icon: Icon(Icons.refresh),
-              label: 'Review',
-            ),
+            NavigationDestination(icon: Icon(Icons.refresh), label: 'Review'),
             NavigationDestination(
               icon: Icon(Icons.settings),
               label: 'Settings',
@@ -177,5 +178,13 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final storage = StorageService(prefs);
   final themeProvider = await ThemeProvider.create();
-  runApp(MyApp(storage: storage, themeProvider: themeProvider));
+  final navigatorKey = GlobalKey<NavigatorState>();
+  await NotificationService.instance.initialize(navigatorKey);
+  runApp(
+    MyApp(
+      storage: storage,
+      themeProvider: themeProvider,
+      navigatorKey: navigatorKey,
+    ),
+  );
 }

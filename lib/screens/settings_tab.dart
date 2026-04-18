@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import '../services/storage_service.dart';
+import '../services/notification_service.dart';
 import '../providers/theme_provider.dart';
 
 class SettingsTab extends StatefulWidget {
@@ -21,11 +22,73 @@ class SettingsTab extends StatefulWidget {
 
 class _SettingsTabState extends State<SettingsTab> {
   String _storagePath = '';
+  Map<int, DaySchedule> _schedule = {};
+  bool _scheduleLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _loadStoragePath();
+    _loadSchedule();
+  }
+
+  Future<void> _loadSchedule() async {
+    final schedule = await NotificationService.instance.loadSchedule();
+    setState(() {
+      _schedule = schedule;
+      _scheduleLoaded = true;
+    });
+  }
+
+  Future<void> _saveAndApply() async {
+    await NotificationService.instance.saveSchedule(_schedule);
+    await NotificationService.instance.applySchedule(_schedule);
+  }
+
+  Future<void> _toggleDay(int weekday, bool enabled) async {
+    if (enabled) {
+      final granted = await NotificationService.instance.requestPermissions();
+      if (!granted && mounted) {
+        _showErrorSnackBar('Notification permission denied');
+        return;
+      }
+      if (!mounted) return;
+      final picked = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay(
+          hour: _schedule[weekday]!.hour,
+          minute: _schedule[weekday]!.minute,
+        ),
+        helpText: 'Set reminder time',
+      );
+      if (!mounted) return;
+      setState(() {
+        _schedule[weekday] = _schedule[weekday]!.copyWith(
+          enabled: true,
+          hour: picked?.hour ?? _schedule[weekday]!.hour,
+          minute: picked?.minute ?? _schedule[weekday]!.minute,
+        );
+      });
+    } else {
+      setState(() {
+        _schedule[weekday] = _schedule[weekday]!.copyWith(enabled: false);
+      });
+    }
+    await _saveAndApply();
+  }
+
+  Future<void> _editTime(int weekday) async {
+    final current = _schedule[weekday]!;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: current.hour, minute: current.minute),
+      helpText: 'Set reminder time',
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _schedule[weekday] = current.copyWith(hour: picked.hour, minute: picked.minute);
+    });
+    await _saveAndApply();
   }
 
   Future<void> _loadStoragePath() async {
@@ -136,6 +199,109 @@ class _SettingsTabState extends State<SettingsTab> {
     );
   }
 
+  Widget _buildScheduleCard() {
+    if (!_scheduleLoaded) {
+      return const Card(
+        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.schedule_rounded, color: colorScheme.primary),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Review Schedule',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Daily reminder notifications',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Divider(),
+            for (int weekday = 1; weekday <= 7; weekday++)
+              _buildDayRow(weekday),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDayRow(int weekday) {
+    final s = _schedule[weekday]!;
+    final name = NotificationService.weekdayNames[weekday - 1];
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      minLeadingWidth: 0,
+      leading: Switch(
+        value: s.enabled,
+        onChanged: (v) => _toggleDay(weekday, v),
+      ),
+      title: Text(
+        name,
+        style: TextStyle(
+          fontWeight: s.enabled ? FontWeight.bold : FontWeight.normal,
+          color: s.enabled ? null : Theme.of(context).textTheme.bodySmall?.color,
+        ),
+      ),
+      trailing: s.enabled
+          ? GestureDetector(
+              onTap: () => _editTime(weekday),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${s.hour.toString().padLeft(2, '0')}:${s.minute.toString().padLeft(2, '0')}',
+                  style: TextStyle(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+
   Widget _buildColorButton(MaterialColor color, String label) {
     final brightness = Theme.of(context).brightness;
     final backgroundColor = brightness == Brightness.light
@@ -236,6 +402,7 @@ class _SettingsTabState extends State<SettingsTab> {
                   ),
             ),
           ),
+          _buildScheduleCard(),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
