@@ -219,7 +219,7 @@ class NotificationService {
       body: "Don't forget to review your flashcards today.",
       scheduledDate: _nextInstanceOfWeekdayAndTime(weekday, hour, minute),
       notificationDetails: _buildNotificationDetails(withActions: true),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
   }
@@ -232,7 +232,7 @@ class NotificationService {
       body: "Don't forget to review your flashcards!",
       scheduledDate: snoozeTime,
       notificationDetails: _buildNotificationDetails(withActions: true),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
   }
 
