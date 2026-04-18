@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/deck.dart';
 import '../services/storage_service.dart';
 
+final _rng = math.Random();
+
 class ReviewTab extends StatefulWidget {
   final StorageService storage;
   const ReviewTab({required this.storage, super.key});
@@ -50,6 +52,7 @@ class _ReviewTabState extends State<ReviewTab>
   }
 
   Future<void> _refreshCurrentDeck() async {
+    if (isReviewing && selectedDeck == null) return; // all-decks mode: don't mutate
     if (selectedDeck != null) {
       final updatedDecks = await widget.storage.getDecks();
       final updatedDeck = updatedDecks.firstWhere(
@@ -83,9 +86,23 @@ class _ReviewTabState extends State<ReviewTab>
 
   void _startReview(Deck deck) {
     _flipController.value = 0.0;
+    final shuffled = List<FlashCard>.from(deck.cards)..shuffle(_rng);
     setState(() {
       selectedDeck = deck;
-      currentCards = deck.cards;
+      currentCards = shuffled;
+      currentCardIndex = 0;
+      _hasFlipped = false;
+      isReviewing = true;
+    });
+  }
+
+  void _startReviewAll() {
+    final allCards = decks.expand((d) => d.cards).toList()..shuffle(_rng);
+    if (allCards.isEmpty) return;
+    _flipController.value = 0.0;
+    setState(() {
+      selectedDeck = null;
+      currentCards = allCards;
       currentCardIndex = 0;
       _hasFlipped = false;
       isReviewing = true;
@@ -148,8 +165,8 @@ class _ReviewTabState extends State<ReviewTab>
     final card = currentCards[currentCardIndex];
     final colorScheme = Theme.of(context).colorScheme;
 
-    final side1 = selectedDeck!.side1Label.toUpperCase();
-    final side2 = selectedDeck!.side2Label.toUpperCase();
+    final side1 = (selectedDeck?.side1Label ?? 'Front').toUpperCase();
+    final side2 = (selectedDeck?.side2Label ?? 'Back').toUpperCase();
     final frontText = _answerFirst ? card.answer : card.question;
     final backText = _answerFirst ? card.question : card.answer;
     final frontLabel = _answerFirst ? side2 : side1;
@@ -335,23 +352,56 @@ class _ReviewTabState extends State<ReviewTab>
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            itemCount: decks.length,
+            itemCount: decks.length + 1,
             itemBuilder: (context, index) {
-              final deck = decks[index];
+              if (index == 0) {
+                final total = decks.fold(0, (s, d) => s + d.cards.length);
+                final cs = Theme.of(context).colorScheme;
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  color: cs.primaryContainer.withOpacity(0.35),
+                  child: ListTile(
+                    onTap: total == 0 ? null : _startReviewAll,
+                    leading: Icon(Icons.layers_rounded, color: cs.primary),
+                    title: Text(
+                      'All Decks',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: total == 0 ? cs.onSurface.withOpacity(0.4) : null,
+                      ),
+                    ),
+                    subtitle: Text('$total cards total'),
+                    trailing: Icon(
+                      Icons.play_circle_filled,
+                      color: total == 0
+                          ? cs.onSurface.withOpacity(0.2)
+                          : cs.primary,
+                      size: 32,
+                    ),
+                  ),
+                );
+              }
+              final deck = decks[index - 1];
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
+                  onTap: deck.cards.isEmpty ? null : () => _startReview(deck),
                   title: Text(
                     deck.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: deck.cards.isEmpty
+                          ? Theme.of(context).colorScheme.onSurface.withOpacity(0.4)
+                          : null,
+                    ),
                   ),
                   subtitle: Text('${deck.cards.length} cards'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.play_circle_filled),
-                    color: Theme.of(context).colorScheme.primary,
-                    iconSize: 32,
-                    onPressed:
-                        deck.cards.isEmpty ? null : () => _startReview(deck),
+                  trailing: Icon(
+                    Icons.play_circle_filled,
+                    color: deck.cards.isEmpty
+                        ? Theme.of(context).colorScheme.onSurface.withOpacity(0.2)
+                        : Theme.of(context).colorScheme.primary,
+                    size: 32,
                   ),
                 ),
               );
@@ -509,7 +559,7 @@ class _ReviewTabState extends State<ReviewTab>
             : null,
         title: isReviewing
             ? Text(
-                selectedDeck?.name ?? '',
+                selectedDeck?.name ?? 'All Decks',
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               )
@@ -540,8 +590,8 @@ class _ReviewTabState extends State<ReviewTab>
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   tooltip: _answerFirst
-                      ? 'Front: ${selectedDeck!.side2Label}'
-                      : 'Front: ${selectedDeck!.side1Label}',
+                      ? 'Front: ${selectedDeck?.side2Label ?? 'Back'}'
+                      : 'Front: ${selectedDeck?.side1Label ?? 'Front'}',
                   onPressed: _toggleDirection,
                 ),
               ]
