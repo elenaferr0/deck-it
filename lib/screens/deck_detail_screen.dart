@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/deck.dart';
-import '../widgets/add_card_dialog.dart';
 import '../widgets/edit_card_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
 import '../services/storage_service.dart';
@@ -23,24 +22,38 @@ class DeckDetailScreen extends StatefulWidget {
 }
 
 class _DeckDetailScreenState extends State<DeckDetailScreen> {
-  Future<void> _addCard() async {
-    final result = await showDialog<Map<String, String>>(
-      context: context,
-      builder: (context) => AddCardDialog(
-        side1Label: widget.deck.side1Label,
-        side2Label: widget.deck.side2Label,
-      ),
-    );
-    if (result != null) {
-      setState(() {
-        widget.deck.cards.add(FlashCard(
-          id: DateTime.now().toString(),
-          question: result['question']!,
-          answer: result['answer']!,
-        ));
-      });
-      await widget.storage.saveDecks(widget.decks);
+  final _side1Controller = TextEditingController();
+  final _side2Controller = TextEditingController();
+  final _side1Focus = FocusNode();
+  final _side2Focus = FocusNode();
+
+  @override
+  void dispose() {
+    _side1Controller.dispose();
+    _side2Controller.dispose();
+    _side1Focus.dispose();
+    _side2Focus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitInlineCard() async {
+    final s1 = _side1Controller.text.trim();
+    final s2 = _side2Controller.text.trim();
+    if (s1.isEmpty) {
+      _side1Focus.requestFocus();
+      return;
     }
+    setState(() {
+      widget.deck.cards.add(FlashCard(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        question: s1,
+        answer: s2,
+      ));
+    });
+    await widget.storage.saveDecks(widget.decks);
+    _side1Controller.clear();
+    _side2Controller.clear();
+    _side1Focus.requestFocus();
   }
 
   Future<void> _editCard(int index) async {
@@ -181,58 +194,6 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
 
       body: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 2,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${widget.deck.cards.length} cards',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${widget.deck.side1Label} / ${widget.deck.side2Label}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                TextButton.icon(
-                  onPressed: _addCard,
-                  icon: const Icon(
-                    Icons.add_circle,
-                    size: 28,
-                  ),
-                  label: const Text(
-                    'Add Card',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                ),
-              ],
-            ),
-          ),
           Expanded(
             child: widget.deck.cards.isEmpty
                 ? Center(
@@ -264,83 +225,43 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.only(top: 8, bottom: 16),
+                    padding: const EdgeInsets.only(top: 8, bottom: 8),
                     itemCount: widget.deck.cards.length,
                     itemBuilder: (context, index) {
                       final card = widget.deck.cards[index];
+                      final cs = Theme.of(context).colorScheme;
                       return Card(
                         margin: const EdgeInsets.symmetric(
-                          horizontal: 16,
+                          horizontal: 4,
                           vertical: 4,
                         ),
                         elevation: 1,
-                        child: Theme(
-                          data: Theme.of(context).copyWith(
-                            dividerColor: Colors.transparent,
+                        child: ListTile(
+                          title: Text(
+                            card.question,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
                           ),
-                          child: ExpansionTile(
-                            title: Text(
-                              card.question,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                          subtitle: card.answer.trim().isEmpty
+                              ? null
+                              : Text(
+                                  card.answer,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.only(
-                                  left: 16,
-                                  right: 16,
-                                  bottom: 16,
-                                ),
-                                width: double.infinity,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${widget.deck.side2Label}:',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      card.answer,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        TextButton.icon(
-                                          onPressed: () => _editCard(index),
-                                          icon: const Icon(Icons.edit, size: 20),
-                                          label: const Text('Edit'),
-                                          style: TextButton.styleFrom(
-                                            foregroundColor: Theme.of(context)
-                                                .colorScheme
-                                                .primary,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        TextButton.icon(
-                                          onPressed: () => _deleteCard(index),
-                                          icon:
-                                              const Icon(Icons.delete, size: 20),
-                                          label: const Text('Delete'),
-                                          style: TextButton.styleFrom(
-                                            foregroundColor: Theme.of(context)
-                                                .colorScheme
-                                                .error,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                              IconButton(
+                                icon: const Icon(Icons.edit_rounded, size: 20),
+                                color: cs.primary,
+                                onPressed: () => _editCard(index),
+                                tooltip: 'Edit',
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_rounded, size: 20),
+                                color: cs.error,
+                                onPressed: () => _deleteCard(index),
+                                tooltip: 'Delete',
                               ),
                             ],
                           ),
@@ -348,6 +269,88 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                       );
                     },
                   ),
+          ),
+          _buildInlineAddForm(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInlineAddForm() {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surface,
+        border: Border(top: BorderSide(color: cs.outlineVariant, width: 1)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        16, 12, 16, 12 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.add_card_rounded, size: 16, color: cs.primary),
+              const SizedBox(width: 6),
+              Text(
+                'New card',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: cs.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const Spacer(),
+              Text(
+                '${widget.deck.cards.length} cards',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _side1Controller,
+            focusNode: _side1Focus,
+            decoration: InputDecoration(
+              labelText: widget.deck.side1Label,
+              border: const OutlineInputBorder(),
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+            textInputAction: TextInputAction.next,
+            onSubmitted: (_) => _side2Focus.requestFocus(),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _side2Controller,
+                  focusNode: _side2Focus,
+                  decoration: InputDecoration(
+                    labelText: widget.deck.side2Label,
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                  ),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _submitInlineCard(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: _submitInlineCard,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                ),
+                child: const Icon(Icons.add_rounded),
+              ),
+            ],
           ),
         ],
       ),
