@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/deck.dart';
 import '../services/storage_service.dart';
@@ -10,19 +11,33 @@ class ReviewTab extends StatefulWidget {
   State<ReviewTab> createState() => _ReviewTabState();
 }
 
-class _ReviewTabState extends State<ReviewTab> {
+class _ReviewTabState extends State<ReviewTab>
+    with SingleTickerProviderStateMixin {
   List<Deck> decks = [];
   List<FlashCard> currentCards = [];
   int currentCardIndex = 0;
-  bool showingAnswer = false;
   bool isReviewing = false;
+  bool _hasFlipped = false;
+  bool _answerFirst = false;
   Deck? selectedDeck;
+
+  late final AnimationController _flipController;
 
   @override
   void initState() {
     super.initState();
+    _flipController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
     _loadDecks();
     _setupPeriodicUpdates();
+  }
+
+  @override
+  void dispose() {
+    _flipController.dispose();
+    super.dispose();
   }
 
   void _setupPeriodicUpdates() {
@@ -41,14 +56,14 @@ class _ReviewTabState extends State<ReviewTab> {
         (deck) => deck.id == selectedDeck!.id,
         orElse: () => selectedDeck!,
       );
-
       if (mounted) {
         setState(() {
           decks = updatedDecks;
           selectedDeck = updatedDeck;
           currentCards = updatedDeck.cards;
           if (currentCardIndex >= currentCards.length) {
-            currentCardIndex = currentCards.isEmpty ? 0 : currentCards.length - 1;
+            currentCardIndex =
+                currentCards.isEmpty ? 0 : currentCards.length - 1;
           }
         });
       }
@@ -67,47 +82,194 @@ class _ReviewTabState extends State<ReviewTab> {
   }
 
   void _startReview(Deck deck) {
+    _flipController.value = 0.0;
     setState(() {
       selectedDeck = deck;
       currentCards = deck.cards;
       currentCardIndex = 0;
-      showingAnswer = false;
+      _hasFlipped = false;
       isReviewing = true;
     });
   }
 
   void _endReview() {
+    _flipController.value = 0.0;
     setState(() {
       isReviewing = false;
       selectedDeck = null;
       currentCards = [];
       currentCardIndex = 0;
-      showingAnswer = false;
+      _hasFlipped = false;
     });
   }
 
   void _nextCard() {
-    setState(() {
-      if (currentCardIndex < currentCards.length - 1) {
+    if (!_hasFlipped || _flipController.isAnimating) return;
+    if (currentCardIndex < currentCards.length - 1) {
+      setState(() {
         currentCardIndex++;
-        showingAnswer = false;
-      }
-    });
+        _hasFlipped = false;
+      });
+      _flipController.value = 0.0;
+    }
   }
 
   void _previousCard() {
-    setState(() {
-      if (currentCardIndex > 0) {
+    if (_flipController.isAnimating) return;
+    if (currentCardIndex > 0) {
+      setState(() {
         currentCardIndex--;
-        showingAnswer = false;
-      }
-    });
+        _hasFlipped = false;
+      });
+      _flipController.value = 0.0;
+    }
   }
 
   void _toggleCard() {
+    if (_flipController.isAnimating) return;
+    if (_flipController.value < 0.5) {
+      _flipController.forward().then((_) {
+        if (mounted) setState(() => _hasFlipped = true);
+      });
+    } else {
+      _flipController.reverse();
+    }
+  }
+
+  void _toggleDirection() {
+    _flipController.value = 0.0;
     setState(() {
-      showingAnswer = !showingAnswer;
+      _answerFirst = !_answerFirst;
+      _hasFlipped = false;
     });
+  }
+
+  Widget _buildFlipCard() {
+    final card = currentCards[currentCardIndex];
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final frontText = _answerFirst ? card.answer : card.question;
+    final backText = _answerFirst ? card.question : card.answer;
+    final frontLabel = _answerFirst ? 'ANSWER' : 'QUESTION';
+    final backLabel = _answerFirst ? 'QUESTION' : 'ANSWER';
+    final hasBack = backText.trim().isNotEmpty;
+
+    return GestureDetector(
+      onTap: _toggleCard,
+      child: AnimatedBuilder(
+        animation: _flipController,
+        builder: (context, _) {
+          final angle = _flipController.value * math.pi;
+          final isShowingFront = _flipController.value <= 0.5;
+
+          // Rotate front 0→90°, back -90°→0 (so it appears unmirrored)
+          final transform = Matrix4.identity()
+            ..setEntry(3, 2, 0.001)
+            ..rotateY(isShowingFront ? angle : angle - math.pi);
+
+          return Transform(
+            transform: transform,
+            alignment: Alignment.center,
+            child: Card(
+              margin:
+                  const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+              elevation: 4,
+              color: isShowingFront
+                  ? colorScheme.surface
+                  : colorScheme.primaryContainer.withOpacity(0.25),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: isShowingFront
+                    ? BorderSide.none
+                    : BorderSide(
+                        color: colorScheme.primary.withOpacity(0.3), width: 1),
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: LayoutBuilder(builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints:
+                              BoxConstraints(minHeight: constraints.maxHeight),
+                          child: IntrinsicHeight(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const SizedBox(height: 32),
+                                  Text(
+                                    isShowingFront ? frontLabel : backLabel,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: colorScheme.primary,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.5,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    isShowingFront
+                                        ? frontText
+                                        : (hasBack
+                                            ? backText
+                                            : 'No answer provided'),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineSmall,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  if (!isShowingFront && !hasBack) ...[
+                                    const SizedBox(height: 16),
+                                    Icon(
+                                      Icons.warning_rounded,
+                                      size: 48,
+                                      color:
+                                          colorScheme.error.withOpacity(0.6),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 16),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  Positioned(
+                    right: 16,
+                    top: 16,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceDim.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        isShowingFront
+                            ? Icons.visibility_off
+                            : (!isShowingFront && !hasBack
+                                ? Icons.warning_rounded
+                                : Icons.visibility),
+                        color: (!isShowingFront && !hasBack)
+                            ? colorScheme.error
+                            : colorScheme.primary,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildDeckList() {
@@ -138,35 +300,63 @@ class _ReviewTabState extends State<ReviewTab> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 8.0),
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: decks.length,
-        itemBuilder: (context, index) {
-          final deck = decks[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              title: Text(
-                deck.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
+    return Column(
+      children: [
+        // Direction toggle
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Row(
+            children: [
+              Text(
+                'Front side:',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('Question'),
+                selected: !_answerFirst,
+                onSelected: (_) => setState(() {
+                  _answerFirst = false;
+                }),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('Answer'),
+                selected: _answerFirst,
+                onSelected: (_) => setState(() {
+                  _answerFirst = true;
+                }),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: decks.length,
+            itemBuilder: (context, index) {
+              final deck = decks[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  title: Text(
+                    deck.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text('${deck.cards.length} cards'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.play_circle_filled),
+                    color: Theme.of(context).colorScheme.primary,
+                    iconSize: 32,
+                    onPressed:
+                        deck.cards.isEmpty ? null : () => _startReview(deck),
+                  ),
                 ),
-              ),
-              subtitle: Text('${deck.cards.length} cards'),
-              trailing: IconButton(
-                icon: const Icon(Icons.play_circle_filled),
-                color: Theme.of(context).colorScheme.primary,
-                iconSize: 32,
-                onPressed: deck.cards.isEmpty
-                    ? null
-                    : () => _startReview(deck),
-              ),
-            ),
-          );
-        },
-      ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -188,13 +378,11 @@ class _ReviewTabState extends State<ReviewTab> {
     }
 
     final colorScheme = Theme.of(context).colorScheme;
-    final currentCard = currentCards[currentCardIndex];
-    final hasAnswer = currentCard.answer.trim().isNotEmpty;
 
     return SafeArea(
       child: Column(
         children: [
-          // Progress indicator and counter
+          // Progress
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16.0),
             child: Column(
@@ -206,6 +394,7 @@ class _ReviewTabState extends State<ReviewTab> {
                         color: colorScheme.primary,
                       ),
                 ),
+                const SizedBox(height: 6),
                 SizedBox(
                   width: 200,
                   child: ClipRRect(
@@ -220,146 +409,87 @@ class _ReviewTabState extends State<ReviewTab> {
               ],
             ),
           ),
-          // Flashcard
-          Expanded(
-            child: GestureDetector(
-              onTap: _toggleCard,
-              child: Card(
-                margin: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Stack(
-                  children: [
-                    // Centered content container
-                    Positioned.fill(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          return SingleChildScrollView(
-                            physics: const BouncingScrollPhysics(),
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                minHeight: constraints.maxHeight,
-                              ),
-                              child: IntrinsicHeight(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(24.0),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const SizedBox(height: 32), // Space for icon
-                                      SelectableText(
-                                        showingAnswer
-                                            ? (hasAnswer ? currentCard.answer : 'No answer provided')
-                                            : currentCard.question,
-                                        style: Theme.of(context).textTheme.headlineSmall,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      if (showingAnswer && !hasAnswer) ...[
-                                        const SizedBox(height: 16),
-                                        Icon(
-                                          Icons.warning_rounded,
-                                          size: 48,
-                                          color: colorScheme.error.withOpacity(0.6),
-                                        ),
-                                      ],
-                                      const SizedBox(height: 16),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    // Visibility indicator
-                    Positioned(
-                      right: 16,
-                      top: 16,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceDim.withOpacity(0.6),
-                          borderRadius: BorderRadius.circular(12),
+          // Flip card
+          Expanded(child: _buildFlipCard()),
+          // Hint when card not yet flipped
+          AnimatedBuilder(
+            animation: _flipController,
+            builder: (context, _) {
+              final notFlipped = _flipController.value < 0.5;
+              return AnimatedOpacity(
+                opacity: notFlipped ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Tap card to flip',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.primary.withOpacity(0.6),
                         ),
-                        child: Icon(
-                          showingAnswer
-                              ? (hasAnswer ? Icons.visibility : Icons.warning_rounded)
-                              : Icons.visibility_off,
-                          color: showingAnswer && !hasAnswer
-                              ? colorScheme.error
-                              : colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
-          // Navigation buttons
+          // Navigation
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: currentCardIndex > 0
-                        ? colorScheme.primaryContainer.withOpacity(0.2)
-                        : Colors.grey.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    onPressed: currentCardIndex > 0 ? _previousCard : null,
-                    color: currentCardIndex > 0
-                        ? colorScheme.primary
-                        : Colors.grey,
-                    iconSize: 28,
-                    padding: const EdgeInsets.all(12),
-                  ),
+                _navButton(
+                  icon: Icons.arrow_back_rounded,
+                  enabled: currentCardIndex > 0,
+                  onPressed: _previousCard,
+                  colorScheme: colorScheme,
                 ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      showingAnswer ? Icons.visibility : Icons.visibility_off,
-                      color: colorScheme.primary,
-                    ),
-                    onPressed: _toggleCard,
-                    iconSize: 28,
-                    padding: const EdgeInsets.all(12),
-                  ),
+                _navButton(
+                  icon: Icons.flip_rounded,
+                  enabled: true,
+                  onPressed: _toggleCard,
+                  colorScheme: colorScheme,
                 ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: currentCardIndex < currentCards.length - 1
-                        ? colorScheme.primaryContainer.withOpacity(0.2)
-                        : Colors.grey.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_forward_rounded),
-                    onPressed: currentCardIndex < currentCards.length - 1
-                        ? _nextCard
-                        : null,
-                    color: currentCardIndex < currentCards.length - 1
-                        ? colorScheme.primary
-                        : Colors.grey,
-                    iconSize: 28,
-                    padding: const EdgeInsets.all(12),
-                  ),
+                AnimatedBuilder(
+                  animation: _flipController,
+                  builder: (context, _) {
+                    final canNext = _hasFlipped &&
+                        currentCardIndex < currentCards.length - 1;
+                    return _navButton(
+                      icon: Icons.arrow_forward_rounded,
+                      enabled: canNext,
+                      onPressed: _nextCard,
+                      colorScheme: colorScheme,
+                    );
+                  },
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _navButton({
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onPressed,
+    required ColorScheme colorScheme,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: enabled
+            ? colorScheme.primaryContainer.withOpacity(0.2)
+            : Colors.grey.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: IconButton(
+        icon: Icon(icon),
+        onPressed: enabled ? onPressed : null,
+        color: enabled ? colorScheme.primary : Colors.grey,
+        iconSize: 28,
+        padding: const EdgeInsets.all(12),
       ),
     );
   }
@@ -375,7 +505,7 @@ class _ReviewTabState extends State<ReviewTab> {
                 onPressed: _endReview,
               )
             : null,
-        title: isReviewing 
+        title: isReviewing
             ? Text(
                 selectedDeck?.name ?? '',
                 overflow: TextOverflow.ellipsis,
@@ -398,13 +528,23 @@ class _ReviewTabState extends State<ReviewTab> {
                 ],
               ),
         automaticallyImplyLeading: !isReviewing,
+        actions: isReviewing
+            ? [
+                IconButton(
+                  icon: Icon(
+                    _answerFirst
+                        ? Icons.question_answer_rounded
+                        : Icons.swap_horiz_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  tooltip:
+                      _answerFirst ? 'Front: Answer' : 'Front: Question',
+                  onPressed: _toggleDirection,
+                ),
+              ]
+            : null,
       ),
       body: isReviewing ? _buildReviewScreen() : _buildDeckList(),
     );
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 }
