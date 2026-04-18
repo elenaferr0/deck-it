@@ -1,3 +1,4 @@
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/storage_service.dart';
@@ -21,22 +22,28 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: themeProvider,
-      builder: (context, child) {
-        return MaterialApp(
-          navigatorKey: navigatorKey,
-          title: 'DeckIt',
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: themeProvider.seedColor,
-              brightness: themeProvider.isDarkMode
-                  ? Brightness.dark
-                  : Brightness.light,
-            ),
-            useMaterial3: true,
-          ),
-          home: MyHomePage(storage: storage, themeProvider: themeProvider),
+    return DynamicColorBuilder(
+      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        return AnimatedBuilder(
+          animation: themeProvider,
+          builder: (context, child) {
+            final seed = themeProvider.seedColor;
+            final lightScheme = seed == null
+                ? (lightDynamic ?? ColorScheme.fromSeed(seedColor: Colors.indigo))
+                : ColorScheme.fromSeed(seedColor: seed);
+            final darkScheme = seed == null
+                ? (darkDynamic ?? ColorScheme.fromSeed(seedColor: Colors.indigo, brightness: Brightness.dark))
+                : ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark);
+
+            return MaterialApp(
+              navigatorKey: navigatorKey,
+              title: 'DeckIt',
+              themeMode: themeProvider.themeMode,
+              theme: ThemeData(colorScheme: lightScheme, useMaterial3: true),
+              darkTheme: ThemeData(colorScheme: darkScheme, useMaterial3: true),
+              home: MyHomePage(storage: storage, themeProvider: themeProvider),
+            );
+          },
         );
       },
     );

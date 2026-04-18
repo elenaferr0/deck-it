@@ -140,6 +140,17 @@ class _SettingsTabState extends State<SettingsTab> {
     );
   }
 
+  Widget _iconBadge(IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, color: Theme.of(context).colorScheme.primary),
+    );
+  }
+
   Widget _buildSettingCard({
     required String title,
     required IconData icon,
@@ -148,9 +159,7 @@ class _SettingsTabState extends State<SettingsTab> {
   }) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 0,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -159,17 +168,7 @@ class _SettingsTabState extends State<SettingsTab> {
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
+                _iconBadge(icon),
                 const SizedBox(width: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,17 +181,60 @@ class _SettingsTabState extends State<SettingsTab> {
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
+                      Text(subtitle,
+                          style: Theme.of(context).textTheme.bodySmall),
                     ],
                   ],
                 ),
               ],
             ),
-            if (content is! Switch) const SizedBox(height: 16),
-            content,
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: content,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Compact single-row card: icon + title + trailing widget, no bottom content.
+  Widget _buildRowCard({
+    required String title,
+    required IconData icon,
+    String? subtitle,
+    required Widget trailing,
+  }) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            _iconBadge(icon),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            trailing,
           ],
         ),
       ),
@@ -302,38 +344,55 @@ class _SettingsTabState extends State<SettingsTab> {
     );
   }
 
-  Widget _buildColorButton(MaterialColor color, String label) {
+  Widget _buildColorButton({Color? color, required String label, IconData? icon}) {
+    final cs = Theme.of(context).colorScheme;
     final brightness = Theme.of(context).brightness;
-    final backgroundColor = brightness == Brightness.light
-        ? color[50]!
-        : color[700]!.withOpacity(0.3);
-    final borderColor =
-        brightness == Brightness.light ? color : color[300]!;
+    final isSelected = widget.themeProvider.seedColor == color;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: borderColor,
-          width: 2,
+    final MaterialColor? mc = color == null ? null : _toMaterialColor(color);
+    final bgColor = color == null
+        ? cs.primaryContainer.withOpacity(isSelected ? 0.5 : 0.2)
+        : (brightness == Brightness.light
+            ? mc![50]!.withOpacity(isSelected ? 1 : 0.7)
+            : mc![700]!.withOpacity(isSelected ? 0.5 : 0.2));
+    final fgColor = color == null
+        ? cs.primary
+        : (brightness == Brightness.light ? mc![900]! : mc![50]!);
+    final borderColor = isSelected
+        ? (color == null ? cs.primary : (brightness == Brightness.light ? mc! : mc![300]!))
+        : Colors.transparent;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => widget.themeProvider.setSeedColor(color),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor, width: 2),
         ),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => widget.themeProvider.toggleSeedColor(color),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: brightness == Brightness.light ? color[900] : color[50],
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 16, color: fgColor),
+              const SizedBox(width: 4),
+            ],
+            Text(label,
+                style: TextStyle(color: fgColor, fontWeight: FontWeight.bold)),
+          ],
         ),
       ),
     );
+  }
+
+  MaterialColor _toMaterialColor(Color color) {
+    if (color == Colors.lime) return Colors.lime;
+    if (color == Colors.indigo) return Colors.indigo;
+    if (color == Colors.blueGrey) return Colors.blueGrey;
+    return Colors.indigo;
   }
 
   @override
@@ -368,41 +427,66 @@ class _SettingsTabState extends State<SettingsTab> {
         padding: const EdgeInsets.symmetric(vertical: 16),
         children: [
           _buildSettingCard(
-            title: 'Dark Mode',
-            icon: Icons.dark_mode_rounded,
-            subtitle: 'Toggle app theme',
-            content: Align(
-              alignment: Alignment.centerRight,
-              child: Switch(
-                value: widget.themeProvider.isDarkMode,
-                onChanged: (_) => widget.themeProvider.toggleTheme(),
+            title: 'Appearance',
+            icon: Icons.brightness_auto_rounded,
+            subtitle: 'Light, dark, or follow system',
+            content: SegmentedButton<ThemeMode>(
+              segments: const [
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  icon: Icon(Icons.brightness_auto_rounded, size: 18),
+                  tooltip: 'System',
+                ),
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  icon: Icon(Icons.light_mode_rounded, size: 18),
+                  tooltip: 'Light',
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  icon: Icon(Icons.dark_mode_rounded, size: 18),
+                  tooltip: 'Dark',
+                ),
+              ],
+              selected: {widget.themeProvider.themeMode},
+              onSelectionChanged: (s) =>
+                  widget.themeProvider.setThemeMode(s.first),
+              style: const ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
           ),
           _buildSettingCard(
             title: 'Color Theme',
             icon: Icons.palette_rounded,
-            subtitle: 'Choose your preferred color scheme',
-            content: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            subtitle: 'Choose accent color',
+            content: Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                _buildColorButton(Colors.lime, 'Lime'),
-                _buildColorButton(Colors.indigo, 'Indigo'),
-                _buildColorButton(Colors.blueGrey, 'Blue'),
+                _buildColorButton(
+                  color: null,
+                  label: 'Dynamic',
+                  icon: Icons.auto_awesome_rounded,
+                ),
+                _buildColorButton(color: Colors.lime, label: 'Lime'),
+                _buildColorButton(color: Colors.indigo, label: 'Indigo'),
+                _buildColorButton(color: Colors.blueGrey, label: 'Blue'),
               ],
             ),
           ),
+          _buildScheduleCard(),
           _buildSettingCard(
             title: 'Storage Location',
             icon: Icons.folder_rounded,
             content: Text(
               _storagePath,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).textTheme.bodySmall?.color,
-                  ),
+                color: Theme.of(context).textTheme.bodySmall?.color,
+              ),
             ),
           ),
-          _buildScheduleCard(),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
