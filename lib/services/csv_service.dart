@@ -5,11 +5,11 @@ import 'package:path_provider/path_provider.dart';
 import '../models/deck.dart';
 
 class CsvService {
-  /// Export deck cards to CSV (question,answer).
+  /// Export deck cards to CSV using the deck's side labels as header.
   /// Returns saved file path, or null if cancelled.
   static Future<String?> exportDeck(Deck deck) async {
     final buffer = StringBuffer();
-    buffer.writeln('question,answer');
+    buffer.writeln('${_escapeCsv(deck.side1Label)},${_escapeCsv(deck.side2Label)}');
     for (final card in deck.cards) {
       buffer.write(_escapeCsv(card.question));
       buffer.write(',');
@@ -80,12 +80,8 @@ class CsvService {
         .toList();
     if (lines.isEmpty) return [];
 
-    // Skip header row if it looks like one.
-    int start = 0;
-    final first = lines[0].toLowerCase();
-    if (first.startsWith('question') || first.startsWith('"question"')) {
-      start = 1;
-    }
+    // Always skip first row (header).
+    const int start = 1;
 
     final cards = <Map<String, String>>[];
     for (int i = start; i < lines.length; i++) {

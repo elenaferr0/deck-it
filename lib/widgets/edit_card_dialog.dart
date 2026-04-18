@@ -3,10 +3,14 @@ import 'package:flutter/material.dart';
 class EditCardDialog extends StatefulWidget {
   final String initialQuestion;
   final String initialAnswer;
+  final String side1Label;
+  final String side2Label;
 
   const EditCardDialog({
     required this.initialQuestion,
     required this.initialAnswer,
+    this.side1Label = 'Front',
+    this.side2Label = 'Back',
     super.key,
   });
 
@@ -15,20 +19,20 @@ class EditCardDialog extends StatefulWidget {
 }
 
 class _EditCardDialogState extends State<EditCardDialog> {
-  late TextEditingController _questionController;
-  late TextEditingController _answerController;
+  late TextEditingController _side1Controller;
+  late TextEditingController _side2Controller;
 
   @override
   void initState() {
     super.initState();
-    _questionController = TextEditingController(text: widget.initialQuestion);
-    _answerController = TextEditingController(text: widget.initialAnswer);
+    _side1Controller = TextEditingController(text: widget.initialQuestion);
+    _side2Controller = TextEditingController(text: widget.initialAnswer);
   }
 
   @override
   void dispose() {
-    _questionController.dispose();
-    _answerController.dispose();
+    _side1Controller.dispose();
+    _side2Controller.dispose();
     super.dispose();
   }
 
@@ -40,13 +44,13 @@ class _EditCardDialogState extends State<EditCardDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
-            controller: _questionController,
-            decoration: const InputDecoration(labelText: 'Question'),
+            controller: _side1Controller,
+            decoration: InputDecoration(labelText: widget.side1Label),
             autofocus: true,
           ),
           TextField(
-            controller: _answerController,
-            decoration: const InputDecoration(labelText: 'Answer'),
+            controller: _side2Controller,
+            decoration: InputDecoration(labelText: widget.side2Label),
           ),
         ],
       ),
@@ -57,8 +61,8 @@ class _EditCardDialogState extends State<EditCardDialog> {
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, {
-            'question': _questionController.text,
-            'answer': _answerController.text,
+            'question': _side1Controller.text,
+            'answer': _side2Controller.text,
           }),
           child: const Text('Save'),
         ),

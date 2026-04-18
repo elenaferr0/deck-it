@@ -26,7 +26,10 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
   Future<void> _addCard() async {
     final result = await showDialog<Map<String, String>>(
       context: context,
-      builder: (context) => const AddCardDialog(),
+      builder: (context) => AddCardDialog(
+        side1Label: widget.deck.side1Label,
+        side2Label: widget.deck.side2Label,
+      ),
     );
     if (result != null) {
       setState(() {
@@ -47,6 +50,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       builder: (context) => EditCardDialog(
         initialQuestion: card.question,
         initialAnswer: card.answer,
+        side1Label: widget.deck.side1Label,
+        side2Label: widget.deck.side2Label,
       ),
     );
     if (result != null) {
@@ -202,7 +207,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Tap a card to see details',
+                      '${widget.deck.side1Label} / ${widget.deck.side2Label}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -291,9 +296,9 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
-                                      'Answer:',
-                                      style: TextStyle(
+                                    Text(
+                                      '${widget.deck.side2Label}:',
+                                      style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.grey,

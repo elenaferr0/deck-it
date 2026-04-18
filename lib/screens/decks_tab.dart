@@ -30,14 +30,16 @@ class _DecksTabState extends State<DecksTab> {
   }
 
   Future<void> _addDeck() async {
-    final name = await showDialog<String>(
+    final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (context) => const AddDeckDialog(),
     );
-    if (name != null && name.isNotEmpty) {
+    if (result != null && result['name']!.isNotEmpty) {
       final newDeck = Deck(
         id: DateTime.now().toString(),
-        name: name,
+        name: result['name']!,
+        side1Label: result['side1Label']!,
+        side2Label: result['side2Label']!,
         cards: [],
       );
       setState(() => decks.add(newDeck));
@@ -47,15 +49,21 @@ class _DecksTabState extends State<DecksTab> {
 
   Future<void> _editDeck(int index) async {
     final deck = decks[index];
-    final newName = await showDialog<String>(
+    final result = await showDialog<Map<String, String>>(
       context: context,
-      builder: (context) => EditDeckDialog(initialName: deck.name),
+      builder: (context) => EditDeckDialog(
+        initialName: deck.name,
+        initialSide1Label: deck.side1Label,
+        initialSide2Label: deck.side2Label,
+      ),
     );
-    if (newName != null && newName.isNotEmpty && newName != deck.name) {
+    if (result != null && result['name']!.isNotEmpty) {
       setState(() {
         decks[index] = Deck(
           id: deck.id,
-          name: newName,
+          name: result['name']!,
+          side1Label: result['side1Label']!,
+          side2Label: result['side2Label']!,
           cards: deck.cards,
         );
       });
@@ -68,16 +76,17 @@ class _DecksTabState extends State<DecksTab> {
     if (!mounted) return;
     if (cards == null) return;
 
-    // Prompt for deck name; default to empty so AddDeckDialog can prefill nothing.
-    final name = await showDialog<String>(
+    final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (context) => const AddDeckDialog(),
     );
-    if (name == null || name.isEmpty) return;
+    if (result == null || result['name']!.isEmpty) return;
 
     final newDeck = Deck(
       id: DateTime.now().toString(),
-      name: name,
+      name: result['name']!,
+      side1Label: result['side1Label']!,
+      side2Label: result['side2Label']!,
       cards: cards
           .asMap()
           .entries
@@ -92,7 +101,7 @@ class _DecksTabState extends State<DecksTab> {
     await widget.storage.saveDecks(decks);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Imported ${cards.length} card(s) into "$name".')),
+      SnackBar(content: Text('Imported ${cards.length} card(s) into "${result['name']}".')),
     );
   }
 

@@ -148,10 +148,12 @@ class _ReviewTabState extends State<ReviewTab>
     final card = currentCards[currentCardIndex];
     final colorScheme = Theme.of(context).colorScheme;
 
+    final side1 = selectedDeck!.side1Label.toUpperCase();
+    final side2 = selectedDeck!.side2Label.toUpperCase();
     final frontText = _answerFirst ? card.answer : card.question;
     final backText = _answerFirst ? card.question : card.answer;
-    final frontLabel = _answerFirst ? 'ANSWER' : 'QUESTION';
-    final backLabel = _answerFirst ? 'QUESTION' : 'ANSWER';
+    final frontLabel = _answerFirst ? side2 : side1;
+    final backLabel = _answerFirst ? side1 : side2;
     final hasBack = backText.trim().isNotEmpty;
 
     return GestureDetector(
@@ -313,7 +315,7 @@ class _ReviewTabState extends State<ReviewTab>
               ),
               const SizedBox(width: 8),
               ChoiceChip(
-                label: const Text('Question'),
+                label: const Text('Side 1'),
                 selected: !_answerFirst,
                 onSelected: (_) => setState(() {
                   _answerFirst = false;
@@ -321,7 +323,7 @@ class _ReviewTabState extends State<ReviewTab>
               ),
               const SizedBox(width: 8),
               ChoiceChip(
-                label: const Text('Answer'),
+                label: const Text('Side 2'),
                 selected: _answerFirst,
                 onSelected: (_) => setState(() {
                   _answerFirst = true;
@@ -537,8 +539,9 @@ class _ReviewTabState extends State<ReviewTab>
                         : Icons.swap_horiz_rounded,
                     color: Theme.of(context).colorScheme.primary,
                   ),
-                  tooltip:
-                      _answerFirst ? 'Front: Answer' : 'Front: Question',
+                  tooltip: _answerFirst
+                      ? 'Front: ${selectedDeck!.side2Label}'
+                      : 'Front: ${selectedDeck!.side1Label}',
                   onPressed: _toggleDirection,
                 ),
               ]
