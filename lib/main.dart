@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/storage_service.dart';
 import 'services/notification_service.dart';
+import 'services/objectbox_service.dart';
+import 'services/sr_service.dart';
 import 'screens/decks_tab.dart';
 import 'screens/review_tab.dart';
 import 'screens/settings_tab.dart';
@@ -12,11 +14,13 @@ class MyApp extends StatelessWidget {
   final StorageService storage;
   final ThemeProvider themeProvider;
   final GlobalKey<NavigatorState> navigatorKey;
+  final SRService srService;
 
   const MyApp({
     required this.storage,
     required this.themeProvider,
     required this.navigatorKey,
+    required this.srService,
     super.key,
   });
 
@@ -41,7 +45,11 @@ class MyApp extends StatelessWidget {
               themeMode: themeProvider.themeMode,
               theme: ThemeData(colorScheme: lightScheme, useMaterial3: true),
               darkTheme: ThemeData(colorScheme: darkScheme, useMaterial3: true),
-              home: MyHomePage(storage: storage, themeProvider: themeProvider),
+              home: MyHomePage(
+                storage: storage,
+                themeProvider: themeProvider,
+                srService: srService,
+              ),
             );
           },
         );
@@ -53,10 +61,12 @@ class MyApp extends StatelessWidget {
 class MyHomePage extends StatefulWidget {
   final StorageService storage;
   final ThemeProvider themeProvider;
+  final SRService srService;
 
   const MyHomePage({
     required this.storage,
     required this.themeProvider,
+    required this.srService,
     super.key,
   });
 
@@ -90,6 +100,7 @@ class _MyHomePageState extends State<MyHomePage> {
         navigatorKey: _navigatorKeys[index]!,
         storage: widget.storage,
         themeProvider: widget.themeProvider,
+        srService: widget.srService,
         tabIndex: index,
       ),
     );
@@ -142,12 +153,14 @@ class TabNavigator extends StatelessWidget {
   final GlobalKey<NavigatorState> navigatorKey;
   final StorageService storage;
   final ThemeProvider themeProvider;
+  final SRService srService;
   final int tabIndex;
 
   const TabNavigator({
     required this.navigatorKey,
     required this.storage,
     required this.themeProvider,
+    required this.srService,
     required this.tabIndex,
     super.key,
   });
@@ -164,11 +177,12 @@ class TabNavigator extends StatelessWidget {
               case 0:
                 return DecksTab(storage: storage);
               case 1:
-                return ReviewTab(storage: storage);
+                return ReviewTab(storage: storage, srService: srService);
               case 2:
                 return SettingsTab(
                   storage: storage,
                   themeProvider: themeProvider,
+                  srService: srService,
                 );
               default:
                 return DecksTab(storage: storage);
@@ -186,12 +200,15 @@ void main() async {
   final storage = StorageService(prefs);
   final themeProvider = await ThemeProvider.create();
   final navigatorKey = GlobalKey<NavigatorState>();
+  final obxService = await ObjectBoxService.create();
+  final srService = SRService(obxService, prefs);
   await NotificationService.instance.initialize(navigatorKey);
   runApp(
     MyApp(
       storage: storage,
       themeProvider: themeProvider,
       navigatorKey: navigatorKey,
+      srService: srService,
     ),
   );
 }

@@ -1,7 +1,7 @@
 name: deck_it
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.0.3
+version: 1.0.4
 
 environment:
   sdk: ^3.11.5
@@ -13,12 +13,17 @@ dependencies:
   file_picker: ^11.0.2
   flutter_local_notifications: ^21.0.0
   flutter_timezone: ^5.0.2
+  objectbox: ^5.3.1
+  objectbox_flutter_libs: ^5.3.1
+  path: ^1.9.0
   path_provider: ^2.1.5
   shared_preferences: ^2.5.5
   timezone: ^0.11.0
   url_launcher: ^6.3.2
 
 dev_dependencies:
+  build_runner: ^2.4.13
+  objectbox_generator: ^5.3.1
   flutter_test:
     sdk: flutter
 

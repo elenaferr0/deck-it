@@ -1,0 +1,64 @@
+{
+  "_note1": "KEEP THIS FILE! Check it into a version control system (VCS) like git.",
+  "_note2": "ObjectBox manages crucial IDs for your object model. See docs for details.",
+  "_note3": "If you have VCS merge conflicts, you must resolve them according to ObjectBox docs.",
+  "entities": [
+    {
+      "id": "1:877715863525900315",
+      "lastPropertyId": "7:1934402273472915875",
+      "name": "CardSRData",
+      "properties": [
+        {
+          "id": "1:6542599694320889339",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:7873669192526041488",
+          "name": "cardId",
+          "indexId": "1:1670873504246388868",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "3:3370172467595172100",
+          "name": "repetitions",
+          "type": 6
+        },
+        {
+          "id": "4:2673032770239845994",
+          "name": "easeFactor",
+          "type": 8
+        },
+        {
+          "id": "5:1665470258457252995",
+          "name": "intervalDays",
+          "type": 6
+        },
+        {
+          "id": "6:846024657923424424",
+          "name": "nextReviewDate",
+          "type": 10
+        },
+        {
+          "id": "7:1934402273472915875",
+          "name": "lastReviewDate",
+          "type": 10
+        }
+      ],
+      "relations": []
+    }
+  ],
+  "lastEntityId": "1:877715863525900315",
+  "lastIndexId": "1:1670873504246388868",
+  "lastRelationId": "0:0",
+  "lastSequenceId": "0:0",
+  "modelVersion": 5,
+  "modelVersionParserMinimum": 5,
+  "retiredEntityUids": [],
+  "retiredIndexUids": [],
+  "retiredPropertyUids": [],
+  "retiredRelationUids": [],
+  "version": 1
+}
