@@ -25,9 +25,21 @@ jobs:
     
     - name: Install dependencies
       run: flutter pub get
-    
+
+    - name: Decode keystore
+      run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/deck_it.keystore
+
+    - name: Create key.properties
+      run: |
+        cat > android/key.properties <<EOF
+        storePassword=${{ secrets.STORE_PASSWORD }}
+        keyPassword=${{ secrets.KEY_PASSWORD }}
+        keyAlias=${{ secrets.KEY_ALIAS }}
+        storeFile=../deck_it.keystore
+        EOF
+
     - name: Building APK
-      run: flutter build apk
+      run: flutter build apk --release
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v7
