@@ -3,6 +3,7 @@ import 'package:fuzzy/fuzzy.dart';
 import '../models/deck.dart';
 import '../widgets/edit_card_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
+import '../widgets/inline_card_form.dart';
 import '../services/storage_service.dart';
 import '../services/csv_service.dart';
 
@@ -331,90 +332,19 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                     },
                   ),
           ),
-          _buildInlineAddForm(),
+          InlineCardForm(
+            side1Controller: _side1Controller,
+            side2Controller: _side2Controller,
+            side1Focus: _side1Focus,
+            side2Focus: _side2Focus,
+            side1Label: widget.deck.side1Label,
+            side2Label: widget.deck.side2Label,
+            cardCount: widget.deck.cards.length,
+            onSubmit: _submitInlineCard,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildInlineAddForm() {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        border: Border(top: BorderSide(color: cs.outlineVariant, width: 1)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        16, 12, 16, 12 + MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.add_card_rounded, size: 16, color: cs.primary),
-              const SizedBox(width: 6),
-              Text(
-                'New card',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: cs.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const Spacer(),
-              Text(
-                '${widget.deck.cards.length} cards',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _side1Controller,
-            focusNode: _side1Focus,
-            decoration: InputDecoration(
-              labelText: widget.deck.side1Label,
-              border: const OutlineInputBorder(),
-              isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            ),
-            textInputAction: TextInputAction.next,
-            onSubmitted: (_) => _side2Focus.requestFocus(),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _side2Controller,
-                  focusNode: _side2Focus,
-                  decoration: InputDecoration(
-                    labelText: widget.deck.side2Label,
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                  ),
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _submitInlineCard(),
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: _submitInlineCard,
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
-                ),
-                child: const Icon(Icons.add_rounded),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }
