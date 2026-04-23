@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fuzzy/fuzzy.dart';
 import '../models/deck.dart';
 import '../widgets/edit_card_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
@@ -26,6 +27,16 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
   final _side2Controller = TextEditingController();
   final _side1Focus = FocusNode();
   final _side2Focus = FocusNode();
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text);
+    });
+  }
 
   @override
   void dispose() {
@@ -33,7 +44,20 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     _side2Controller.dispose();
     _side1Focus.dispose();
     _side2Focus.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  List<FlashCard> get _filteredCards {
+    if (_searchQuery.isEmpty) return widget.deck.cards;
+    final fuse = Fuzzy<FlashCard>(
+      widget.deck.cards,
+      options: FuzzyOptions(keys: [
+        WeightedKey(name: 'question', getter: (c) => c.question, weight: 0.6),
+        WeightedKey(name: 'answer', getter: (c) => c.answer, weight: 0.4),
+      ]),
+    );
+    return fuse.search(_searchQuery).map((r) => r.item).toList();
   }
 
   Future<void> _submitInlineCard() async {
@@ -160,6 +184,33 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
         ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search cards…',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () => _searchController.clear(),
+                      )
+                    : null,
+                isDense: true,
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+        ),
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -195,7 +246,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       body: Column(
         children: [
           Expanded(
-            child: widget.deck.cards.isEmpty
+            child: widget.deck.cards.isEmpty && _searchQuery.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -224,11 +275,21 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
+                : _filteredCards.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No results for "$_searchQuery"',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).textTheme.bodySmall?.color,
+                              ),
+                        ),
+                      )
+                    : ListView.builder(
                     padding: const EdgeInsets.only(top: 8, bottom: 8),
-                    itemCount: widget.deck.cards.length,
+                    itemCount: _filteredCards.length,
                     itemBuilder: (context, index) {
-                      final card = widget.deck.cards[index];
+                      final card = _filteredCards[index];
+                      final originalIndex = widget.deck.cards.indexWhere((c) => c.id == card.id);
                       final cs = Theme.of(context).colorScheme;
                       return Card(
                         margin: const EdgeInsets.symmetric(
@@ -254,13 +315,13 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                               IconButton(
                                 icon: const Icon(Icons.edit_rounded, size: 20),
                                 color: cs.primary,
-                                onPressed: () => _editCard(index),
+                                onPressed: () => _editCard(originalIndex),
                                 tooltip: 'Edit',
                               ),
                               IconButton(
                                 icon: const Icon(Icons.delete_rounded, size: 20),
                                 color: cs.error,
-                                onPressed: () => _deleteCard(index),
+                                onPressed: () => _deleteCard(originalIndex),
                                 tooltip: 'Delete',
                               ),
                             ],

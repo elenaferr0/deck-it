@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fuzzy/fuzzy.dart';
 import '../widgets/add_deck_dialog.dart';
 import '../widgets/edit_deck_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
@@ -17,11 +18,31 @@ class DecksTab extends StatefulWidget {
 
 class _DecksTabState extends State<DecksTab> {
   List<Deck> decks = [];
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _loadDecks();
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text);
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Deck> get _filteredDecks {
+    if (_searchQuery.isEmpty) return decks;
+    final fuse = Fuzzy<Deck>(
+      decks,
+      options: FuzzyOptions(keys: [WeightedKey(name: 'name', getter: (d) => d.name, weight: 1)]),
+    );
+    return fuse.search(_searchQuery).map((r) => r.item).toList();
   }
 
   Future<void> _loadDecks() async {
@@ -151,8 +172,35 @@ class _DecksTabState extends State<DecksTab> {
             onPressed: _importDeck,
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search decks…',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () => _searchController.clear(),
+                      )
+                    : null,
+                isDense: true,
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+        ),
       ),
-      body: decks.isEmpty
+      body: _filteredDecks.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -164,12 +212,12 @@ class _DecksTabState extends State<DecksTab> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No Decks Yet',
+                    _searchQuery.isEmpty ? 'No Decks Yet' : 'No results',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Create your first deck to get started!',
+                    _searchQuery.isEmpty ? 'Create your first deck to get started!' : 'Try a different search term.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
@@ -185,9 +233,9 @@ class _DecksTabState extends State<DecksTab> {
                 mainAxisSpacing: 16,
                 childAspectRatio: 1.0,
               ),
-              itemCount: decks.length,
+              itemCount: _filteredDecks.length,
               itemBuilder: (context, index) {
-                final deck = decks[index];
+                final deck = _filteredDecks[index];
                 final cardCount = deck.cards.length;
 
                 return Card(
@@ -243,10 +291,11 @@ class _DecksTabState extends State<DecksTab> {
                               padding: EdgeInsets.zero,
                               icon: const Icon(Icons.more_vert, size: 20),
                               onSelected: (value) {
+                                final originalIndex = decks.indexWhere((d) => d.id == deck.id);
                                 if (value == 'edit') {
-                                  _editDeck(index);
+                                  _editDeck(originalIndex);
                                 } else if (value == 'delete') {
-                                  _deleteDeck(index);
+                                  _deleteDeck(originalIndex);
                                 }
                               },
                               itemBuilder: (context) => [
