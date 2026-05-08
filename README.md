@@ -1,5 +1,7 @@
 <div align="center">
 
+> ⚠️ This repo has been migrated to Codeberg https://codeberg.org/elenaferr0/deck-it
+
 <img width="" src="assets/screenshots/icon.png"  width=160 height=160  align="center">
 
 # DeckIt - FlashCards App  [![Flutter CI](https://github.com/nuanv/DeckIt/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/nuanv/DeckIt/actions/workflows/flutter-ci.yml)
